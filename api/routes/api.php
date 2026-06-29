@@ -1,6 +1,6 @@
 <?php
 
-// Mengambil file controller secara manual khas PHP Native
+require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/../Controllers/HarvestController.php';
 
 $controller = new HarvestController();
