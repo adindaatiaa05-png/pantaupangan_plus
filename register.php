@@ -8,16 +8,24 @@ if (isset($_POST['register'])) {
     $password = password_hash($_POST['password'], PASSWORD_BCRYPT);
     $role = $_POST['role'];
 
-    $cek_email = mysqli_query($conn, "SELECT * FROM users WHERE email='$email'");
-    if (mysqli_num_rows($cek_email) > 0) {
-        $pesan = "<div class='bg-red-500/20 border border-red-500/50 text-red-200 p-2 rounded text-sm mb-4 text-center'>Email sudah terdaftar!</div>";
-    } else {
-        $query = "INSERT INTO users (nama, email, password, role) VALUES ('$nama', '$email', '$password', '$role')";
-        if (mysqli_query($conn, $query)) {
-            header("Location: login.php");
+    try {
+        // Cek email sudah ada
+        $stmt = $conn->prepare("SELECT id FROM users WHERE email = ?");
+        $stmt->execute([$email]);
+        $cek_email = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        if (count($cek_email) > 0) {
+            $pesan = "<div class='bg-red-500/20 border border-red-500/50 text-red-200 p-2 rounded text-sm mb-4 text-center'>Email sudah terdaftar!</div>";
         } else {
-            $pesan = "<div class='bg-red-500/20 border border-red-500/50 text-red-200 p-2 rounded text-sm mb-4 text-center'>Gagal mendaftar.</div>";
+            $stmt = $conn->prepare("INSERT INTO users (nama, email, password, role) VALUES (?, ?, ?, ?)");
+            if ($stmt->execute([$nama, $email, $password, $role])) {
+                header("Location: login.php");
+            } else {
+                $pesan = "<div class='bg-red-500/20 border border-red-500/50 text-red-200 p-2 rounded text-sm mb-4 text-center'>Gagal mendaftar.</div>";
+            }
         }
+    } catch (PDOException $e) {
+        $pesan = "<div class='bg-red-500/20 border border-red-500/50 text-red-200 p-2 rounded text-sm mb-4 text-center'>Terjadi kesalahan. Coba lagi nanti.</div>";
     }
 }
 ?>

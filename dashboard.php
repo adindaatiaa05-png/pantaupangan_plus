@@ -16,15 +16,19 @@ $pesan = "";
 // FITUR 1: CREATE (TAMBAH DATA PANGAN)
 // ==========================================
 if (isset($_POST['tambah_pangan']) && ($role == 'petugas' || $role == 'admin')) {
-    $komoditas = mysqli_real_escape_string($conn, $_POST['nama_komoditas']);
+    $komoditas = $_POST['nama_komoditas'];
     $harga = intval($_POST['harga']);
     $stok = intval($_POST['stok']);
     $status = $_POST['status'];
 
-    $query = "INSERT INTO pangan (nama_komoditas, harga, stok, status, diupdate_oleh) VALUES ('$komoditas', $harga, $stok, '$status', '$nama')";
-    if (mysqli_query($conn, $query)) {
-        $pesan = "<div class='bg-green-500/20 border border-green-500/30 text-green-200 p-3 rounded-xl mb-4'>Data pangan berhasil ditambahkan!</div>";
-    } else {
+    try {
+        $stmt = $conn->prepare("INSERT INTO pangan (nama_komoditas, harga, stok, status, diupdate_oleh) VALUES (?, ?, ?, ?, ?)");
+        if ($stmt->execute([$komoditas, $harga, $stok, $status, $nama])) {
+            $pesan = "<div class='bg-green-500/20 border border-green-500/30 text-green-200 p-3 rounded-xl mb-4'>Data pangan berhasil ditambahkan!</div>";
+        } else {
+            $pesan = "<div class='bg-red-500/20 border border-red-500/30 text-red-200 p-3 rounded-xl mb-4'>Gagal menambah data.</div>";
+        }
+    } catch (PDOException $e) {
         $pesan = "<div class='bg-red-500/20 border border-red-500/30 text-red-200 p-3 rounded-xl mb-4'>Gagal menambah data.</div>";
     }
 }
@@ -34,18 +38,24 @@ if (isset($_POST['tambah_pangan']) && ($role == 'petugas' || $role == 'admin')) 
 // ==========================================
 if (isset($_POST['update_pangan']) && ($role == 'petugas' || $role == 'admin')) {
     $id_pangan = intval($_POST['id_pangan']);
-    $komoditas = mysqli_real_escape_string($conn, $_POST['nama_komoditas']);
+    $komoditas = $_POST['nama_komoditas'];
     $harga = intval($_POST['harga']);
     $stok = intval($_POST['stok']);
     $status = $_POST['status'];
 
-    $cek = mysqli_query($conn, "SELECT id FROM pangan WHERE id = $id_pangan");
-    if (mysqli_num_rows($cek) > 0) {
-        mysqli_query($conn, "UPDATE pangan SET nama_komoditas='$komoditas', harga=$harga, stok=$stok, status='$status', diupdate_oleh='$nama' WHERE id=$id_pangan");
-        $pesan = "<div class='bg-green-500/20 border border-green-500/30 text-green-200 p-3 rounded-xl mb-4'>Data berhasil diperbarui!</div>";
-    } else {
-        http_response_code(404); // Set status code 404 sesuai aturan modul
-        $pesan = "<div class='bg-red-500/20 border border-red-500/30 text-red-200 p-3 rounded-xl mb-4'>Error 404: Komoditas tidak ditemukan.</div>";
+    try {
+        $cek = $conn->prepare("SELECT id FROM pangan WHERE id = ?");
+        $cek->execute([$id_pangan]);
+        if ($cek->rowCount() > 0) {
+            $stmt = $conn->prepare("UPDATE pangan SET nama_komoditas=?, harga=?, stok=?, status=?, diupdate_oleh=? WHERE id=?");
+            $stmt->execute([$komoditas, $harga, $stok, $status, $nama, $id_pangan]);
+            $pesan = "<div class='bg-green-500/20 border border-green-500/30 text-green-200 p-3 rounded-xl mb-4'>Data berhasil diperbarui!</div>";
+        } else {
+            http_response_code(404);
+            $pesan = "<div class='bg-red-500/20 border border-red-500/30 text-red-200 p-3 rounded-xl mb-4'>Error 404: Komoditas tidak ditemukan.</div>";
+        }
+    } catch (PDOException $e) {
+        $pesan = "<div class='bg-red-500/20 border border-red-500/30 text-red-200 p-3 rounded-xl mb-4'>Error: Gagal memperbarui data.</div>";
     }
 }
 
@@ -54,14 +64,20 @@ if (isset($_POST['update_pangan']) && ($role == 'petugas' || $role == 'admin')) 
 // ==========================================
 if (isset($_GET['hapus_pangan']) && ($role == 'petugas' || $role == 'admin')) {
     $id_hapus = intval($_GET['hapus_pangan']);
-    $cek = mysqli_query($conn, "SELECT id FROM pangan WHERE id = $id_hapus");
-    if (mysqli_num_rows($cek) > 0) {
-        mysqli_query($conn, "DELETE FROM pangan WHERE id = $id_hapus");
-        header("Location: dashboard.php?tab=dashboard");
-        exit;
-    } else {
-        http_response_code(404);
-        $pesan = "<div class='bg-red-500/20 border border-red-500/30 text-red-200 p-3 rounded-xl mb-4'>Error 404: Data gagal dihapus karena tidak ada.</div>";
+    try {
+        $cek = $conn->prepare("SELECT id FROM pangan WHERE id = ?");
+        $cek->execute([$id_hapus]);
+        if ($cek->rowCount() > 0) {
+            $stmt = $conn->prepare("DELETE FROM pangan WHERE id = ?");
+            $stmt->execute([$id_hapus]);
+            header("Location: dashboard.php?tab=dashboard");
+            exit;
+        } else {
+            http_response_code(404);
+            $pesan = "<div class='bg-red-500/20 border border-red-500/30 text-red-200 p-3 rounded-xl mb-4'>Error 404: Data gagal dihapus karena tidak ada.</div>";
+        }
+    } catch (PDOException $e) {
+        $pesan = "<div class='bg-red-500/20 border border-red-500/30 text-red-200 p-3 rounded-xl mb-4'>Error: Gagal menghapus data.</div>";
     }
 }
 
@@ -70,9 +86,14 @@ if (isset($_GET['hapus_pangan']) && ($role == 'petugas' || $role == 'admin')) {
 // ==========================================
 if (isset($_GET['hapus_user']) && $role == 'admin') {
     $id_hapus = intval($_GET['hapus_user']);
-    mysqli_query($conn, "DELETE FROM users WHERE id = $id_hapus");
-    header("Location: dashboard.php?tab=manajemen");
-    exit;
+    try {
+        $stmt = $conn->prepare("DELETE FROM users WHERE id = ?");
+        $stmt->execute([$id_hapus]);
+        header("Location: dashboard.php?tab=manajemen");
+        exit;
+    } catch (PDOException $e) {
+        // Handle error silently
+    }
 }
 
 $tab = isset($_GET['tab']) ? $_GET['tab'] : 'dashboard';
@@ -132,11 +153,11 @@ $tab = isset($_GET['tab']) ? $_GET['tab'] : 'dashboard';
                 </div>
                 <div class="bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-2xl shadow-sm">
                     <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Komoditas Dipantau</h3>
-                    <p class="text-2xl font-black text-white mt-2"><?= mysqli_num_rows(mysqli_query($conn, "SELECT id FROM pangan")); ?> Item</p>
+                    <p class="text-2xl font-black text-white mt-2"><?php $count_pangan = $conn->query("SELECT COUNT(*) FROM pangan")->fetch(); echo $count_pangan[0] . " Item"; ?></p>
                 </div>
                 <div class="bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-2xl shadow-sm">
                     <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">User Terdaftar</h3>
-                    <p class="text-2xl font-black text-white mt-2"><?= mysqli_num_rows(mysqli_query($conn, "SELECT id FROM users")); ?> Akun</p>
+                    <p class="text-2xl font-black text-white mt-2"><?php $count_users = $conn->query("SELECT COUNT(*) FROM users")->fetch(); echo $count_users[0] . " Akun"; ?></p>
                 </div>
             </div>
 
@@ -158,8 +179,8 @@ $tab = isset($_GET['tab']) ? $_GET['tab'] : 'dashboard';
                         </thead>
                         <tbody class="divide-y divide-white/5 text-gray-200">
                             <?php
-                            $data_pangan = mysqli_query($conn, "SELECT * FROM pangan ORDER BY id DESC");
-                            while($p = mysqli_fetch_assoc($data_pangan)):
+                            $data_pangan = $conn->query("SELECT * FROM pangan ORDER BY id DESC");
+                            while($p = $data_pangan->fetch(PDO::FETCH_ASSOC)):
                                 $warna_status = $p['status'] == 'Aman' ? 'bg-green-500/20 text-green-300 border-green-500/30' : ($p['status'] == 'Waspada' ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' : 'bg-red-500/20 text-red-300 border-red-500/30');
                             ?>
                             <tr class="hover:bg-white/5 transition">
@@ -215,9 +236,11 @@ $tab = isset($_GET['tab']) ? $_GET['tab'] : 'dashboard';
         <?php 
         if ($tab == 'edit' && ($role == 'petugas' || $role == 'admin')): 
             $id_edit = intval($_GET['id_edit']);
-            $ambil_pangan = mysqli_query($conn, "SELECT * FROM pangan WHERE id = $id_edit");
-            if(mysqli_num_rows($ambil_pangan) > 0):
-                $ep = mysqli_fetch_assoc($ambil_pangan);
+            $ambil_pangan = $conn->prepare("SELECT * FROM pangan WHERE id = ?");
+            $ambil_pangan->execute([$id_edit]);
+            $pangan_data = $ambil_pangan->fetchAll(PDO::FETCH_ASSOC);
+            if(count($pangan_data) > 0):
+                $ep = $pangan_data[0];
         ?>
             <div class="bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-2xl shadow-lg max-w-lg">
                 <h2 class="text-xl font-bold text-white mb-4">✏️ Ubah Data Pangan (ID: <?= $ep['id'] ?>)</h2>
@@ -270,8 +293,8 @@ $tab = isset($_GET['tab']) ? $_GET['tab'] : 'dashboard';
                     </thead>
                     <tbody class="divide-y divide-white/5 text-gray-200">
                         <?php
-                        $users_query = mysqli_query($conn, "SELECT * FROM users ORDER BY role ASC");
-                        while($u = mysqli_fetch_assoc($users_query)):
+                        $users_query = $conn->query("SELECT * FROM users ORDER BY role ASC");
+                        while($u = $users_query->fetch(PDO::FETCH_ASSOC)):
                         ?>
                         <tr class="hover:bg-white/5 transition">
                             <td class="p-3 font-semibold text-white"><?= htmlspecialchars($u['nama']) ?></td>

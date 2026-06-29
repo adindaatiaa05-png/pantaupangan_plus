@@ -7,19 +7,27 @@ if (isset($_POST['login'])) {
     $email = $_POST['email'];
     $password = $_POST['password'];
 
-    $result = mysqli_query($conn, "SELECT * FROM users WHERE email='$email'");
-    if (mysqli_num_rows($result) === 1) {
-        $row = mysqli_fetch_assoc($result);
-        if (password_verify($password, $row['password'])) {
-            $_SESSION['login'] = true;
-            $_SESSION['nama']  = $row['nama'];
-            $_SESSION['role']  = $row['role'];
-            
-            header("Location: dashboard.php");
-            exit;
+    try {
+        $stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
+        $stmt->execute([$email]);
+        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        if (count($result) === 1) {
+            $row = $result[0];
+            if (password_verify($password, $row['password'])) {
+                session_regenerate_id(true);
+                $_SESSION['login'] = true;
+                $_SESSION['nama']  = $row['nama'];
+                $_SESSION['role']  = $row['role'];
+                
+                header("Location: dashboard.php");
+                exit;
+            }
         }
+        $pesan = "<div class='bg-red-500/20 border border-red-500/50 text-red-200 p-2 rounded text-sm mb-4 text-center'>Email atau Password salah!</div>";
+    } catch (PDOException $e) {
+        $pesan = "<div class='bg-red-500/20 border border-red-500/50 text-red-200 p-2 rounded text-sm mb-4 text-center'>Terjadi kesalahan. Coba lagi nanti.</div>";
     }
-    $pesan = "<div class='bg-red-500/20 border border-red-500/50 text-red-200 p-2 rounded text-sm mb-4 text-center'>Email atau Password salah!</div>";
 }
 ?>
 <!DOCTYPE html>
